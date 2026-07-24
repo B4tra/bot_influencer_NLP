@@ -38,9 +38,9 @@ class InstagramGraphAPIScraper(BaseInstagramScraper):
         fields = (
             f"business_discovery.username({clean_username}){{"
             f"id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url,"
-            f"media.limit({max_posts})={{"
+            f"media.limit({max_posts}){{"
             f"id,caption,comments_count,like_count,media_type,media_url,permalink,timestamp,"
-            f"comments.limit({max_comments_per_post})={{"
+            f"comments.limit({max_comments_per_post}){{"
             f"id,text,username,timestamp"
             f"}}"
             f"}}"
