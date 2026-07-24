@@ -22,11 +22,26 @@ class InstaloaderScraper(BaseInstagramScraper):
         ig_user = username or os.getenv("INSTAGRAM_USERNAME")
         ig_pass = password or os.getenv("INSTAGRAM_PASSWORD")
 
-        if ig_user and ig_pass:
+        if ig_user:
+            # Try loading saved session file first (more stable, avoids bot detection)
             try:
-                self.loader.login(ig_user, ig_pass)
+                self.loader.load_session_from_file(ig_user)
+                print(f"[Instaloader] Session loaded from file for @{ig_user}")
+                return
+            except FileNotFoundError:
+                print(f"[Instaloader] No session file found for @{ig_user}. Trying password login...")
             except Exception as e:
-                print(f"[Warning] Instaloader login failed: {e}. Proceeding anonymously...")
+                print(f"[Instaloader] Session file error: {e}. Trying password login...")
+
+            # Fallback to password login
+            if ig_pass:
+                try:
+                    self.loader.login(ig_user, ig_pass)
+                    # Save session for future use
+                    self.loader.save_session_to_file()
+                    print(f"[Instaloader] Logged in as @{ig_user} and session saved.")
+                except Exception as e:
+                    print(f"[Warning] Instaloader login failed: {e}. Proceeding anonymously...")
 
     def scrape_profile(self, username: str, max_posts: int = 15, max_comments_per_post: int = 20) -> Dict[str, Any]:
         """
