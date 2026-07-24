@@ -33,11 +33,24 @@ def main():
 
     try:
         scraper = get_instagram_scraper(prefer_official=True, force_mode=force_mode)
-        data = scraper.scrape_profile(
-            username=clean_username,
-            max_posts=args.max_posts,
-            max_comments_per_post=args.max_comments
-        )
+        try:
+            data = scraper.scrape_profile(
+                username=clean_username,
+                max_posts=args.max_posts,
+                max_comments_per_post=args.max_comments
+            )
+        except Exception as api_err:
+            if args.mode == "auto" and scraper.__class__.__name__ == "InstagramGraphAPIScraper":
+                print(f"\n[Warning] Meta Graph API failed ({api_err}). Switching to Instaloader fallback...")
+                from src.scrapers import InstaloaderScraper
+                fallback_scraper = InstaloaderScraper()
+                data = fallback_scraper.scrape_profile(
+                    username=clean_username,
+                    max_posts=args.max_posts,
+                    max_comments_per_post=args.max_comments
+                )
+            else:
+                raise api_err
 
         exporter = DataExporter(output_dir=args.output_dir)
         json_path, p_csv, post_csv, c_csv = exporter.save_all(data)
