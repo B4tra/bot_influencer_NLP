@@ -1,4 +1,5 @@
 import os
+import re
 import instaloader
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -21,9 +22,19 @@ class InstaloaderScraper(BaseInstagramScraper):
 
         ig_user = username or os.getenv("INSTAGRAM_USERNAME")
         ig_pass = password or os.getenv("INSTAGRAM_PASSWORD")
+        session_id = os.getenv("INSTAGRAM_SESSION_ID")
 
+        # Method 1: Browser session cookie (most reliable, bypasses bot detection)
+        if session_id and session_id != "your_sessionid_cookie_value_here":
+            try:
+                self._login_with_session_id(session_id, ig_user)
+                print(f"[Instaloader] Logged in via browser session cookie.")
+                return
+            except Exception as e:
+                print(f"[Instaloader] Session cookie login failed: {e}. Trying other methods...")
+
+        # Method 2: Load saved session file
         if ig_user:
-            # Try loading saved session file first (more stable, avoids bot detection)
             try:
                 self.loader.load_session_from_file(ig_user)
                 print(f"[Instaloader] Session loaded from file for @{ig_user}")
@@ -33,15 +44,39 @@ class InstaloaderScraper(BaseInstagramScraper):
             except Exception as e:
                 print(f"[Instaloader] Session file error: {e}. Trying password login...")
 
-            # Fallback to password login
+            # Method 3: Password login (least reliable)
             if ig_pass:
                 try:
                     self.loader.login(ig_user, ig_pass)
-                    # Save session for future use
                     self.loader.save_session_to_file()
                     print(f"[Instaloader] Logged in as @{ig_user} and session saved.")
                 except Exception as e:
                     print(f"[Warning] Instaloader login failed: {e}. Proceeding anonymously...")
+
+    def _login_with_session_id(self, session_id: str, username: Optional[str] = None):
+        """
+        Login to Instagram using the sessionid cookie obtained from a browser.
+        This is the most reliable method as it reuses an existing browser session.
+        """
+        import requests
+        # Get username from session if not provided
+        if not username:
+            resp = requests.get(
+                "https://www.instagram.com/api/v1/accounts/current_user/?edit=true",
+                headers={"User-Agent": "Mozilla/5.0"},
+                cookies={"sessionid": session_id},
+                timeout=15
+            )
+            if resp.status_code == 200:
+                username = resp.json().get("user", {}).get("username", "user")
+            else:
+                username = "user"
+
+        self.loader.context._session.cookies.update({
+            "sessionid": session_id,
+            "ds_user_id": "",
+        })
+        self.loader.context.username = username
 
     def scrape_profile(self, username: str, max_posts: int = 15, max_comments_per_post: int = 20) -> Dict[str, Any]:
         """
